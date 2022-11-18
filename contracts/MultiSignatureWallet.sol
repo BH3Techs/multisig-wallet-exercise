@@ -1,9 +1,9 @@
-pragma solidity ^0.8.7;
+pragma solidity ^0.5.16;
 
 contract MultiSignatureWallet {
 
     address[] public owners;
-    uint public _equired;
+    uint public required;
     mapping(address => bool) public isOwner;
 
     uint public transactionCount;
@@ -12,39 +12,39 @@ contract MultiSignatureWallet {
     event Submission(uint indexed transactionId);
     mapping(uint => mapping(address => bool)) public confirmations;
 
-    event Confirmations(uint indexed sender, uint indexed transactionId);
+    event Confirmation(address indexed sender, uint indexed transactionId); 
     event Execution(uint indexed transactionId);
     event ExecutionFailure(uint indexed transactionId);
 
     struct Transaction {
-      bool executed;
-      address destination;
-      uint value;
-      bytes data;
+        bool executed;
+        address destination;
+        uint value;
+        bytes data;
     }
 
     event Deposit(address indexed sender, uint value);
 
     /// @dev Fallback function allows to deposit ether.
     function()
-    	external
+        external
         payable
     {
         if (msg.value > 0) {
             emit Deposit(msg.sender, msg.value);
-	}
+    }
     }
 
     /*
-     * Public functions
-     */
+        * Public functions
+        */
     /// @dev Contract constructor sets initial owners and required number of confirmations.
     /// @param _owners List of initial owners.
     /// @param _required Number of required confirmations.
     constructor(address[] memory _owners, uint _required) public validRequirement(_owners.length,_required){
         owners = _owners;
         required = _required;
-        for(i =0; i<_owners.length; i++){
+        for(uint i =0; i<_owners.length; i++){
             isOwner[_owners[i]] = true;
         }
     }
@@ -55,24 +55,22 @@ contract MultiSignatureWallet {
     /// @param data Transaction data payload.
     /// @return Returns transaction ID.
     function submitTransaction(address destination, uint value, bytes memory data) public returns (uint transactionId) {
-        require(isOwner[msg.sender])
+        require(isOwner[msg.sender]);
         transactionId = addTransaction(destination, value, data);
         confirmTransaction(transactionId);
     }
 
     /// @dev Allows an owner to confirm a transaction.
     /// @param transactionId Transaction ID.
-    function confirmTransaction(uint transactionId) public {
-        require(isOwner[msg.sender]);
-        require(transactions[transactionId].destination != address(0));
-        require(confirmations[transactionId][msg.sender] = false);
+    function confirmTransaction(uint transactionId) public {          
+        require(isOwner[msg.sender]);          
+        require(transactions[transactionId].destination != address(0));          
+        require(confirmations[transactionId][msg.sender] == false);          
+        confirmations[transactionId][msg.sender] = true;          
+        emit Confirmation(msg.sender, transactionId);          
+        executeTransaction(transactionId);      
+    }  
 
-        confirmations[transactionId][msg.sender] = true;
-
-        emit Confirmation(msg.sender,transactionId);
-
-        executeTransaction(transactionId);
-    }
 
     /// @dev Allows an owner to revoke a confirmation for a transaction.
     /// @param transactionId Transaction ID.
@@ -98,19 +96,19 @@ contract MultiSignatureWallet {
 
     }
 
-		/*
-		 * (Possible) Helper Functions
-		 */
+        /*
+            * (Possible) Helper Functions
+            */
     /// @dev Returns the confirmation status of a transaction.
     /// @param transactionId Transaction ID.
     /// @return Confirmation status.
     function isConfirmed(uint transactionId) internal view returns (bool) {
         uint count = 0;
-        for (i =0 ; i < owners.length; i++){
+        for (uint i =0 ; i < owners.length; i++){
             if(confirmations[transactionId][owners[i]])
                 count +=1;
                 if (count == required)
-                    return true
+                    return true;
         }
     }
 
@@ -122,10 +120,10 @@ contract MultiSignatureWallet {
     function addTransaction(address destination, uint value, bytes memory data) internal returns (uint transactionId) {
         transactionId = transactionCount;
         transactions[transactionId] = Transaction({
-            execute : false;
-            value : value;
-            data : data;
-            destination : destination;
+            executed : false,
+            value : value,
+            data : data,
+            destination : destination
         });
         transactionCount += 1;
         emit Submission(transactionId);
